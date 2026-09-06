@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import JoinRoomUI from '../components/JoinRoomUI';
 import ThemeToggle from '../components/ThemeToggle';
-import socket from '../socket';
 
 const generateRandomCode = () => {
   return 'ROOM-' + Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -58,10 +57,7 @@ const JoinRoomPage = ({
     if (setParentUsername) setParentUsername(cleanUser);
     if (setParentRoomId) setParentRoomId(cleanRoom);
 
-    // Join room via socket
-    socket.emit('join_room', { roomId: cleanRoom, username: cleanUser });
-
-    // Navigate to watch room
+    // Navigate to watch room where useRoom will connect to socket
     navigate(`/room/${encodeURIComponent(cleanRoom)}?username=${encodeURIComponent(cleanUser)}`);
   };
 

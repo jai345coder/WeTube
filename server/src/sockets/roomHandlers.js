@@ -13,32 +13,48 @@ const rooms = new Map();
 function registerRoomHandler(io, socket) {
   // Client creates or joins a room
   socket.on('join_room', ({ roomId, username }) => {
-    let room = rooms.get(roomId);
+    const normalizedRoomId = String(roomId || '').trim().toUpperCase();
+    const cleanUsername = String(username || '').trim();
+
+    if (!normalizedRoomId || !cleanUsername) {
+      socket.emit('error', { message: 'Room ID and username are required' });
+      return;
+    }
+
+    let room = rooms.get(normalizedRoomId);
     let role;
 
     if (!room) {
       // First person to join automatically creates the room and becomes the Host
-      room = new Room(roomId, socket.id);
-      rooms.set(roomId, room);
+      room = new Room(normalizedRoomId, socket.id);
+      rooms.set(normalizedRoomId, room);
       role = 'host';
     } else {
-      // Any subsequent joiner enters as a standard participant
-      role = 'participant';
+      // Check if this socket or user is already the host or already in the room
+      const existing = room.getParticipant(socket.id);
+      if (existing) {
+        role = existing.role;
+      } else if (room.hostId === socket.id || room.participants.size === 0) {
+        room.hostId = socket.id;
+        role = 'host';
+      } else {
+        role = 'participant';
+      }
     }
 
-    const participant = new Participant(socket.id, username, role);
+    const participant = new Participant(socket.id, cleanUsername, role);
     room.addParticipant(participant);
 
-    socket.join(roomId);
-    socket.data.roomId = roomId;
-    socket.data.username = username;
+    socket.join(normalizedRoomId);
+    socket.data.roomId = normalizedRoomId;
+    socket.data.username = cleanUsername;
 
     // Send the current room state (video ID, time, play status) to the joiner
     socket.emit('sync_state', room.state);
 
     // Broadcast updated participants and roles to everyone in the room
     room.broadcast(io, 'user_joined', {
-      username,
+      username: cleanUsername,
       userId: socket.id,
       role,
       participants: room.getParticipantList(),
@@ -63,17 +79,18 @@ function registerRoomHandler(io, socket) {
  * Handles leaving and host transfer
  */
 function handleLeave(io, socket, roomId) {
-  const room = rooms.get(roomId);
+  const normalizedRoomId = String(roomId || socket.data.roomId || '').trim().toUpperCase();
+  const room = rooms.get(normalizedRoomId);
   if (!room) {
     return;
   }
 
   room.removeParticipant(socket.id);
-  socket.leave(roomId);
+  socket.leave(normalizedRoomId);
 
   if (room.isEmpty()) {
     // Clean up empty room from memory
-    rooms.delete(roomId);
+    rooms.delete(normalizedRoomId);
   } else {
     // If the leaving user was the host, automatically pass host role to the next participant
     if (socket.id === room.hostId) {

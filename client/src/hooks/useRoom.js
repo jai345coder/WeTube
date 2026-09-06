@@ -4,7 +4,7 @@ import socket from '../socket';
 /**
  * Hook is the single source of truth for everything happening inside
  * a room - who is in it, video state, and actions the current user can take.
- * @RoomShowcasePage calls this and passes the result down to @UI_components.
+ * RoomShowcasePage calls this and passes the result down to UI components.
  */
 function useRoom(roomId, username) {
   const [participants, setParticipants] = useState([]);
@@ -17,8 +17,7 @@ function useRoom(roomId, username) {
   const [errorMessage, setErrorMessage] = useState(null);
 
   /**
-   * Derive "my role" by finding in the @participants list using socket.id
-   * @Guarded with Array.isArray to avoid @TypeError during async sync
+   * Derive "my role" by finding in the participants list using socket.id
    */
   const myParticipant = Array.isArray(participants)
     ? participants.find((p) => p.userId === socket.id)
@@ -26,19 +25,12 @@ function useRoom(roomId, username) {
   const myRole = myParticipant?.role || 'participant';
 
   useEffect(() => {
-    /**
-     * Handles the initial state sent after joining, and every
-     * subsequent play/pause/seek/change_video broadcast
-     */
     const onSyncState = (state) => {
       if (state) {
         setVideoState(state);
       }
     };
 
-    /**
-     * Fires when anyone joins including us - server sends the full updated participants
-     */
     const onUserJoined = (data) => {
       if (Array.isArray(data?.participants)) {
         setParticipants(data.participants);
@@ -65,8 +57,15 @@ function useRoom(roomId, username) {
 
     const onError = (err) => {
       setErrorMessage(err?.message || 'An unexpected error occurred');
-      // Auto-clear after 5 seconds
       setTimeout(() => setErrorMessage(null), 5000);
+    };
+
+    const emitJoin = () => {
+      if (roomId && username) {
+        const cleanRoom = String(roomId).trim().toUpperCase();
+        const cleanUser = String(username).trim();
+        socket.emit('join_room', { roomId: cleanRoom, username: cleanUser });
+      }
     };
 
     socket.on('sync_state', onSyncState);
@@ -75,12 +74,11 @@ function useRoom(roomId, username) {
     socket.on('role_assigned', onRoleAssigned);
     socket.on('participant_removed', onParticipantRemoved);
     socket.on('error', onError);
+    socket.on('connect', emitJoin);
 
-    /**
-     * Re-join on mount/direct load if roomId & username are present
-     */
-    if (roomId && username) {
-      socket.emit('join_room', { roomId, username });
+    // If socket is already connected, emit immediately
+    if (socket.connected) {
+      emitJoin();
     }
 
     return () => {
@@ -90,6 +88,7 @@ function useRoom(roomId, username) {
       socket.off('role_assigned', onRoleAssigned);
       socket.off('participant_removed', onParticipantRemoved);
       socket.off('error', onError);
+      socket.off('connect', emitJoin);
     };
   }, [roomId, username]);
 
