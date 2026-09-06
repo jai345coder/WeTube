@@ -2,14 +2,17 @@ import { io } from 'socket.io-client';
 
 /**
  * Single shared Socket.IO connection for the entire app.
- * Dynamically resolves localhost or local network IP so devices on LAN can connect.
+ * Connects to VITE_SERVER_URL in production (Vercel -> Render)
+ * with graceful fallback to localhost for local development.
  */
-// Uses VITE_SERVER_URL in production (set on Render), 
-// falls back to localhost for local development
-const socket = io(import.meta.env.VITEURL|| 'http://localhost:3000');
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
-
-// const socket = io(SERVER_URL);
+const socket = io(SERVER_URL, {
+  transports: ['websocket', 'polling'],
+  reconnectionAttempts: 10,
+  reconnectionDelay: 1000,
+  autoConnect: true,
+});
 
 socket.on('connect', () => {
   console.log('⚡️ Connected to WeTube Socket server:', socket.id);
