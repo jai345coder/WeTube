@@ -6,7 +6,7 @@ import { io } from 'socket.io-client';
  */
 // Uses VITE_SERVER_URL in production (set on Render), 
 // falls back to localhost for local development
-const socket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:3000');
+const socket = io(import.meta.env.VITEURL|| 'http://localhost:3000');
 
 
 // const socket = io(SERVER_URL);
