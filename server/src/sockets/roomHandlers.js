@@ -2,27 +2,27 @@ import Room from "../models/Room.js";
 import Participant from "../models/Participant.js";
 
 /**
- * This Map is our entire "database" for now - lives only in server RAM
+ * In-memory room storage
  * Key: roomId (string) -> Values: Room instance
  */
 const rooms = new Map();
 
 /**
- * This function gets called once per client connection (from app.js)
- * and sets up all room-related event listeners for that one socket
+ * Registers room event listeners for a client socket connection
  */
 function registerRoomHandler(io, socket) {
-  // fires when a client wants to create or join a room
+  // Client creates or joins a room
   socket.on('join_room', ({ roomId, username }) => {
     let room = rooms.get(roomId);
     let role;
 
     if (!room) {
-      // Room doesn't exist yet - this socket becomes the room's creator / Host
+      // First person to join automatically creates the room and becomes the Host
       room = new Room(roomId, socket.id);
       rooms.set(roomId, room);
       role = 'host';
     } else {
+      // Any subsequent joiner enters as a standard participant
       role = 'participant';
     }
 
@@ -33,13 +33,10 @@ function registerRoomHandler(io, socket) {
     socket.data.roomId = roomId;
     socket.data.username = username;
 
-    // Send initial synced state to the joiner
+    // Send the current room state (video ID, time, play status) to the joiner
     socket.emit('sync_state', room.state);
 
-    /**
-     * Broadcast to EVERYONE in the room (including the joiner)
-     * updated participants list so all UIs refresh who's in the room and their roles
-     */
+    // Broadcast updated participants and roles to everyone in the room
     room.broadcast(io, 'user_joined', {
       username,
       userId: socket.id,
@@ -48,14 +45,12 @@ function registerRoomHandler(io, socket) {
     });
   });
 
-  // Fires when a client explicitly leaves (clicks a "leave" button)
+  // Client clicks "Leave" button
   socket.on('leave_room', ({ roomId }) => {
     handleLeave(io, socket, roomId);
   });
 
-  /**
-   * Fires automatically when a client closes tab / loses connection / navigates away
-   */
+  // Client closes window / disconnects
   socket.on('disconnect', () => {
     const roomId = socket.data.roomId;
     if (roomId) {
@@ -65,7 +60,7 @@ function registerRoomHandler(io, socket) {
 }
 
 /**
- * Shared logic between leave_room and disconnect
+ * Handles leaving and host transfer
  */
 function handleLeave(io, socket, roomId) {
   const room = rooms.get(roomId);
@@ -77,10 +72,19 @@ function handleLeave(io, socket, roomId) {
   socket.leave(roomId);
 
   if (room.isEmpty()) {
-    // Room empty = delete the room entirely
+    // Clean up empty room from memory
     rooms.delete(roomId);
   } else {
-    // Other participants still in the room
+    // If the leaving user was the host, automatically pass host role to the next participant
+    if (socket.id === room.hostId) {
+      const remaining = Array.from(room.participants.values());
+      if (remaining.length > 0) {
+        remaining[0].setRole('host');
+        room.hostId = remaining[0].socketId;
+      }
+    }
+
+    // Broadcast updated participant roster to all remaining members
     room.broadcast(io, 'user_left', {
       username: socket.data.username,
       userId: socket.id,

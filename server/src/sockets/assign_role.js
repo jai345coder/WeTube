@@ -1,7 +1,8 @@
 import { rooms } from "./roomHandlers.js";
 
 /**
- * registerAssignRoleHandler registers assign_role listener for one socket connection
+ * registerAssignRoleHandler registers assign_role listener for one socket connection.
+ * Only the room's Host can promote or demote other participants.
  */
 function registerAssignRoleHandler(io, socket) {
   socket.on('assign_role', ({ userId, role }) => {
@@ -11,26 +12,33 @@ function registerAssignRoleHandler(io, socket) {
     }
 
     const requester = room.getParticipant(socket.id);
-    const target = room.getParticipant(userId || socket.id);
 
-    if (!target) {
-      socket.emit('error', { message: 'Participant not found' });
+    // Enforce that only the host can assign roles
+    if (!requester || !requester.isHost()) {
+      socket.emit('error', { message: 'Only the room host can assign roles' });
       return;
     }
 
-    // Allow switching role (self-switch or host-assigned switch)
+    const target = room.getParticipant(userId);
+    if (!target) {
+      socket.emit('error', { message: 'Participant not found in this room' });
+      return;
+    }
+
+    // Set target role
     target.setRole(role);
 
-    // If target becomes host, update room.hostId
+    // If host is transferring ownership to another participant
     if (role === 'host') {
+      requester.setRole('moderator');
       room.hostId = target.socketId;
     }
 
-    // Broadcast the updated role and participant list to the room
+    // Broadcast the updated roles and participant list to everyone in the room
     room.broadcast(io, 'role_assigned', {
       userId: target.socketId,
       username: target.username,
-      role,
+      role: target.role,
       participants: room.getParticipantList(),
     });
   });
