@@ -9,20 +9,6 @@ import VideoPlayer from '../components/VideoPlayer';
 import useRoom from '../hooks/useRoom';
 import socket from '../socket';
 
-const INITIAL_PARTICIPANTS = [
-  { userId: 'u-1', username: 'Alex Chen', role: 'host', isSelf: true },
-  { userId: 'u-2', username: 'Sarah_Dev', role: 'moderator' },
-  { userId: 'u-3', username: 'NeonVibe', role: 'participant' },
-  { userId: 'u-4', username: 'K-Dog', role: 'participant' },
-  { userId: 'u-5', username: 'LofiLover', role: 'participant' },
-];
-
-const SAMPLE_VIDEOS = [
-  { id: 'jfKfPfyJRdk', title: 'Lofi Hip Hop Radio 24/7 — Beats to Relax/Study to', duration: 3600 },
-  { id: '4xDzrJKXOOY', title: 'synthwave radio - chill synth / retro beats', duration: 5400 },
-  { id: '5qap5aO4i9A', title: 'lofi hip hop radio - beats to sleep/chill to', duration: 7200 },
-];
-
 /**
  * Robust YouTube video ID parser (handles youtu.be, watch?v=, embed, shorts, and raw IDs)
  */
@@ -44,19 +30,19 @@ const extractYouTubeId = (input = '') => {
   return clean;
 };
 
-const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
+const RoomShowcasePage = ({ theme, onToggleTheme, username: propUsername }) => {
   const { roomId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const currentUsername = username || searchParams.get('username') || 'Alex Chen';
-  const displayRoomCode = roomId || 'CHILL-LOFI-402';
+  const currentUsername = propUsername || searchParams.get('username') || 'User';
+  const displayRoomCode = roomId || 'ROOM';
 
   // Hook into real room socket state & actions
   const {
     participants: liveParticipants = [],
     videoState,
-    myRole,
+    myRole = 'participant',
     errorMessage,
     play,
     pause,
@@ -66,22 +52,17 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
     removeParticipant,
   } = useRoom(roomId, currentUsername);
 
-  // Dynamic role switcher state (lets user switch between Host, Moderator, Participant)
-  const [customRole, setCustomRole] = useState(null);
-  const currentUserRole = customRole || myRole || 'host';
-  const canControl = currentUserRole === 'host' || currentUserRole === 'moderator';
-
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  // Video State
-  const [currentVideo, setCurrentVideo] = useState(SAMPLE_VIDEOS[0]);
+  // Playback State
   const [localCurrentTime, setLocalCurrentTime] = useState(0);
-  const [localDuration, setLocalDuration] = useState(3600);
+  const [localDuration, setLocalDuration] = useState(0);
 
   const activeVideoId = videoState?.videoId && videoState.videoId !== 'null'
     ? videoState.videoId
-    : currentVideo.id;
-  const playState = videoState?.playState || 'playing';
+    : null;
+  const playState = videoState?.playState || 'paused';
+  const canControl = myRole === 'host' || myRole === 'moderator';
 
   // Update local time when server sends sync_state
   useEffect(() => {
@@ -90,26 +71,15 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
     }
   }, [videoState?.currentTime]);
 
-  // Use live socket participants if available; otherwise use showcase initial participants
-  const rawParticipants = liveParticipants && liveParticipants.length > 0
-    ? liveParticipants
-    : INITIAL_PARTICIPANTS;
+  // Real connected participants
+  const effectiveParticipants = liveParticipants && liveParticipants.length > 0
+    ? liveParticipants.map((p) => ({
+        ...p,
+        isSelf: p.userId === socket.id || p.username === currentUsername,
+      }))
+    : [{ userId: socket.id || 'me', username: currentUsername, role: myRole, isSelf: true }];
 
-  // Synchronize current user's role in the participants list
-  const effectiveParticipants = rawParticipants.map((p) => {
-    const isMe = p.userId === socket.id || p.username === currentUsername || p.isSelf;
-    return isMe ? { ...p, role: currentUserRole, isSelf: true } : p;
-  });
-
-  // Switch role handler: updates local state and notifies backend socket
-  const handleRoleSwitch = (newRole) => {
-    setCustomRole(newRole);
-    if (assignRole && socket.id) {
-      assignRole(socket.id, newRole);
-    }
-  };
-
-  // Participant Management handlers
+  // Participant Management handlers (Host only)
   const handlePromote = (userId) => {
     if (assignRole) {
       assignRole(userId, 'moderator');
@@ -149,11 +119,6 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
     if (changeVideo) {
       changeVideo(parsedId);
     }
-    setCurrentVideo({
-      id: parsedId,
-      title: `YouTube Video (${parsedId})`,
-      duration: 3600,
-    });
   };
 
   return (
@@ -163,7 +128,7 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
       <Sidebar
         roomCode={displayRoomCode}
         participants={effectiveParticipants}
-        currentUserRole={currentUserRole}
+        currentUserRole={myRole}
         onPromote={handlePromote}
         onDemote={handleDemote}
         onRemove={handleRemove}
@@ -213,37 +178,15 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
               </span>
               <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                SYNCED • 1080p60
+                LIVE SYNC
               </span>
             </div>
           </div>
 
-          {/* Right: Role Switcher Toolbar, Theme Toggle, Leave Room */}
+          {/* Right: Theme Toggle, User Avatar, Leave Room */}
           <div className="flex items-center gap-2 sm:gap-3">
-            
-            {/* Interactive Role Switcher */}
-            <div className="hidden sm:flex items-center bg-[#111214] p-1 rounded-xl border border-white/10 shadow-inner">
-              <span className="text-[11px] font-semibold text-slate-400 px-2">Role:</span>
-              {(['host', 'moderator', 'participant']).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleSwitch(role)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-lg capitalize transition-all ${
-                    currentUserRole === role
-                      ? 'bg-[#5865F2] text-white shadow-md font-semibold scale-100'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-
-            {/* Theme Toggle */}
+            <RoleBadge role={myRole} size="sm" />
             <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-
-            {/* User Avatar */}
             <Avatar username={currentUsername} size="sm" showStatus={true} status="online" />
 
             {/* Leave Room Button */}
@@ -273,40 +216,39 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
 
         {/* Room Stage Body */}
         <main className="flex-1 p-4 sm:p-6 flex flex-col max-w-6xl w-full mx-auto space-y-4">
-          
-          {/* Mobile Role Switcher Bar */}
-          <div className="flex sm:hidden items-center justify-between p-2 rounded-xl bg-[#1e1f22] border border-white/10">
-            <span className="text-xs text-slate-400 font-semibold">Switch Role:</span>
-            <div className="flex items-center gap-1">
-              {(['host', 'moderator', 'participant']).map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleSwitch(role)}
-                  className={`px-2 py-1 text-[11px] rounded-lg capitalize transition-all ${
-                    currentUserRole === role
-                      ? 'bg-[#5865F2] text-white font-bold'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {role}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Video Player Frame with VideoPlayer */}
+          {/* Video Player Frame */}
           <div className="relative w-full aspect-video rounded-2xl bg-[#1e1f22] border border-white/10 shadow-2xl overflow-hidden flex flex-col justify-between group">
             
-            <div className="absolute inset-0 w-full h-full">
-              <VideoPlayer
-                videoId={activeVideoId}
-                playState={playState}
-                currentTime={videoState?.currentTime ?? localCurrentTime}
-                onTimeUpdate={(time) => setLocalCurrentTime(time)}
-                onDurationChange={(dur) => setLocalDuration(dur)}
-              />
-            </div>
+            {activeVideoId ? (
+              <div className="absolute inset-0 w-full h-full">
+                <VideoPlayer
+                  videoId={activeVideoId}
+                  playState={playState}
+                  currentTime={videoState?.currentTime ?? localCurrentTime}
+                  onTimeUpdate={(time) => setLocalCurrentTime(time)}
+                  onDurationChange={(dur) => setLocalDuration(dur)}
+                />
+              </div>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/60 via-[#1e1f22] to-slate-950/80 flex items-center justify-center">
+                <div className="text-center space-y-3 z-10 px-4">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#5865F2]/20 text-[#5865F2] border border-[#5865F2]/40 backdrop-blur-md shadow-2xl">
+                    <svg className="w-8 h-8 translate-x-0.5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white max-w-md">
+                    No Video Loaded Yet
+                  </h3>
+                  <p className="text-xs text-slate-400 max-w-sm">
+                    {canControl
+                      ? 'Paste a YouTube video link or ID in the bar below to start the party!'
+                      : 'Waiting for the room host to choose a video...'}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Top Video Header Overlay */}
             <div className="relative z-20 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none">
@@ -315,24 +257,28 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
                   <span className="w-2 h-2 rounded-full bg-white animate-ping" />
                   LIVE SYNC
                 </span>
-                <span className="text-xs text-slate-300 font-medium hidden sm:inline">
-                  {currentVideo.title}
-                </span>
+                {activeVideoId && (
+                  <span className="text-xs text-slate-300 font-medium hidden sm:inline">
+                    YouTube ID: {activeVideoId}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2">
-                <RoleBadge role={currentUserRole} size="sm" />
+                <RoleBadge role={myRole} size="sm" />
               </div>
             </div>
 
             {/* Bottom Floating Status Bar */}
             <div className="relative z-20 p-4 flex items-center justify-between bg-gradient-to-t from-black/80 via-black/30 to-transparent text-xs text-slate-300 pointer-events-none">
               <div className="flex items-center gap-2">
-                <span className="text-emerald-400 font-mono">Sync latency &lt; 25ms</span>
+                <span className="text-emerald-400 font-mono">
+                  {effectiveParticipants.length} {effectiveParticipants.length === 1 ? 'member' : 'members'} online
+                </span>
               </div>
               <div className="flex items-center gap-3 text-slate-400">
                 <span>1080p HD</span>
-                <span>Active Role: <strong className="text-white capitalize">{currentUserRole}</strong></span>
+                <span>Role: <strong className="text-white capitalize">{myRole}</strong></span>
               </div>
             </div>
           </div>
@@ -349,30 +295,6 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username }) => {
               onSeek={handleSeek}
               onChangeVideo={handleChangeVideo}
             />
-          </div>
-
-          {/* 4. Quick Video Presets Guide Banner */}
-          <div className="p-4 rounded-xl bg-[#1e1f22]/60 border border-white/5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-slate-400">
-            <div className="flex items-center gap-2">
-              <span className="text-base">🎬</span>
-              <span>
-                <strong>Video Controls Active:</strong> Paste any YouTube link above or choose a preset below. Playback syncs to all users in the room.
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-slate-500">Quick Presets:</span>
-              {SAMPLE_VIDEOS.map((v, i) => (
-                <button
-                  key={v.id}
-                  type="button"
-                  disabled={!canControl}
-                  onClick={() => handleChangeVideo(v.id)}
-                  className="px-2.5 py-1 rounded bg-[#2b2d31] hover:bg-[#5865F2] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-[11px] font-medium"
-                >
-                  Track {i + 1}
-                </button>
-              ))}
-            </div>
           </div>
 
         </main>

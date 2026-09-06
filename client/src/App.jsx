@@ -13,8 +13,8 @@ function App() {
 
 function AppContent() {
   const [theme, setTheme] = useState('dark');
-  const [username, setUsername] = useState('CyberDrifter');
-  const [roomId, setRoomId] = useState('CHILL-LOFI-402');
+  const [username, setUsername] = useState('');
+  const [roomId, setRoomId] = useState('');
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));

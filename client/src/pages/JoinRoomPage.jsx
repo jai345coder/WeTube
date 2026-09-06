@@ -4,13 +4,9 @@ import JoinRoomUI from '../components/JoinRoomUI';
 import ThemeToggle from '../components/ThemeToggle';
 import socket from '../socket';
 
-const SAMPLE_ROOM_CODES = [
-  'CHILL-LOFI-402',
-  'SYNTH-WAVE-911',
-  'ANIME-NIGHT-204',
-  'GAMING-SQUAD-77',
-  'CODING-STREAM-55',
-];
+const generateRandomCode = () => {
+  return 'ROOM-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+};
 
 const JoinRoomPage = ({
   theme,
@@ -21,8 +17,8 @@ const JoinRoomPage = ({
   setRoomId: setParentRoomId,
 }) => {
   const navigate = useNavigate();
-  const [username, setLocalUsername] = useState(parentUsername || 'CyberDrifter');
-  const [roomCode, setLocalRoomCode] = useState(parentRoomId || 'CHILL-LOFI-402');
+  const [username, setLocalUsername] = useState(parentUsername || '');
+  const [roomCode, setLocalRoomCode] = useState(parentRoomId || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -37,7 +33,7 @@ const JoinRoomPage = ({
   };
 
   const handleGenerateRoom = () => {
-    const randomCode = SAMPLE_ROOM_CODES[Math.floor(Math.random() * SAMPLE_ROOM_CODES.length)] || `ROOM-${Math.floor(100 + Math.random() * 900)}`;
+    const randomCode = generateRandomCode();
     handleRoomCodeChange(randomCode);
     setError('');
   };
@@ -48,7 +44,7 @@ const JoinRoomPage = ({
     const cleanRoom = (roomCode || '').trim().toUpperCase();
 
     if (!cleanUser) {
-      setError('Please enter a display name.');
+      setError('Please enter your display name.');
       return;
     }
     if (!cleanRoom) {
@@ -75,7 +71,7 @@ const JoinRoomPage = ({
       <header className="w-full flex items-center justify-between p-4 sm:p-6 z-20">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-mono text-slate-400">WeTube Live Sync Ready</span>
+          <span className="text-xs font-mono text-slate-400">WeTube Live Sync</span>
         </div>
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       </header>
