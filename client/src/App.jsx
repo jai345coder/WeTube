@@ -4,12 +4,23 @@ import JoinRoomPage from './pages/JoinRoomPage';
 import RoomShowcasePage from './pages/RoomShowcasePage';
 
 function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
+    </BrowserRouter>
+  );
+}
+
+function AppContent() {
   const [theme, setTheme] = useState('dark');
+  const [username, setUsername] = useState('CyberDrifter');
+  const [roomId, setRoomId] = useState('CHILL-LOFI-402');
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Applies dark/light class to root document element
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -22,19 +33,32 @@ function App() {
 
   return (
     <div className={theme === 'dark' ? 'dark' : 'light'}>
-      <BrowserRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={<JoinRoomPage theme={theme} onToggleTheme={toggleTheme} />}
-          />
-          <Route
-            path="/room/:roomId"
-            element={<RoomShowcasePage theme={theme} onToggleTheme={toggleTheme} />}
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <JoinRoomPage
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              username={username}
+              setUsername={setUsername}
+              roomId={roomId}
+              setRoomId={setRoomId}
+            />
+          }
+        />
+        <Route
+          path="/room/:roomId"
+          element={
+            <RoomShowcasePage
+              theme={theme}
+              onToggleTheme={toggleTheme}
+              username={username}
+            />
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </div>
   );
 }

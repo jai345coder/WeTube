@@ -26,8 +26,8 @@ const server = http.createServer(app);
  */
 const io = new Server(server, {
     cors: {
-        origin: "*",//temporoy
-        methods: ["GET", "POST" ]
+        origin: "*",
+        methods: ["GET", "POST"]
     }
 })
 

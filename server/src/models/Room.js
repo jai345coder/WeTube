@@ -35,7 +35,7 @@ addParticipant(particant){
  * Called on Leave_room or disconnect
  */
 removeParticipant(socketId){
-      this.participants.get(socketId);
+      this.participants.delete(socketId);
 }
 
 /**

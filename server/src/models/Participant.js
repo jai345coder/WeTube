@@ -34,9 +34,9 @@ class Participant {
       }
 
       /**
-       * Called when host @promotes /demotes someone via @assign_role event
+       * Called when host promotes/demotes someone via assign_role event
        */
-      setRole(){
+      setRole(newRole){
             this.role = newRole;
       }
 }
