@@ -80,15 +80,23 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username: propUsername }) => {
     : [{ userId: socket.id || 'me', username: currentUsername, role: myRole, isSelf: true }];
 
   // Participant Management handlers (Host only)
-  const handlePromote = (userId) => {
+  const handleAssignRole = (userId, role) => {
     if (assignRole) {
-      assignRole(userId, 'moderator');
+      assignRole(userId, role);
     }
   };
 
+  const handlePromote = (userId) => {
+    handleAssignRole(userId, 'moderator');
+  };
+
   const handleDemote = (userId) => {
+    handleAssignRole(userId, 'participant');
+  };
+
+  const handleTransferHost = (userId) => {
     if (assignRole) {
-      assignRole(userId, 'participant');
+      assignRole(userId, 'host');
     }
   };
 
@@ -131,6 +139,8 @@ const RoomShowcasePage = ({ theme, onToggleTheme, username: propUsername }) => {
         currentUserRole={myRole}
         onPromote={handlePromote}
         onDemote={handleDemote}
+        onTransferHost={handleTransferHost}
+        onAssignRole={handleAssignRole}
         onRemove={handleRemove}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}

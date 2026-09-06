@@ -22,6 +22,8 @@ const Sidebar = ({
   currentUserRole = 'participant',
   onPromote,
   onDemote,
+  onTransferHost,
+  onAssignRole,
   onRemove,
   isMobileOpen = false,
   onCloseMobile,
@@ -161,14 +163,14 @@ const Sidebar = ({
                     </div>
                   </div>
 
-                  {/* Host Action Buttons (Hover-visible & touch friendly) */}
+                  {/* Host Action Buttons */}
                   {isHost && !p.isSelf && !isTargetHost && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      {/* Promote to Moderator */}
-                      {!isTargetMod && onPromote && (
+                      {/* Promote to Moderator / Demote to Participant */}
+                      {!isTargetMod ? (
                         <button
                           type="button"
-                          onClick={() => onPromote(p.userId)}
+                          onClick={() => onAssignRole ? onAssignRole(p.userId, 'moderator') : (onPromote && onPromote(p.userId))}
                           aria-label={`Promote ${p.username} to moderator`}
                           title="Promote to Moderator"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-400 hover:bg-[#5865F2]/20 transition-all active:scale-90"
@@ -177,19 +179,31 @@ const Sidebar = ({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
                           </svg>
                         </button>
-                      )}
-
-                      {/* Demote to Participant */}
-                      {isTargetMod && onDemote && (
+                      ) : (
                         <button
                           type="button"
-                          onClick={() => onDemote(p.userId)}
-                          aria-label={`Demote ${p.username} to participant`}
-                          title="Demote to Participant"
+                          onClick={() => onAssignRole ? onAssignRole(p.userId, 'participant') : (onDemote && onDemote(p.userId))}
+                          aria-label={`Demote ${p.username} to member`}
+                          title="Demote to Member"
                           className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-500/20 transition-all active:scale-90"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                          </svg>
+                        </button>
+                      )}
+
+                      {/* Transfer Host Ownership */}
+                      {(onTransferHost || onAssignRole) && (
+                        <button
+                          type="button"
+                          onClick={() => onTransferHost ? onTransferHost(p.userId) : onAssignRole(p.userId, 'host')}
+                          aria-label={`Transfer Host ownership to ${p.username}`}
+                          title="Transfer Host Ownership"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-amber-400 hover:bg-amber-500/20 transition-all active:scale-90"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5m14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z" />
                           </svg>
                         </button>
                       )}

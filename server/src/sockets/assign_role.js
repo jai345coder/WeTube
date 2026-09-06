@@ -6,6 +6,12 @@ import { rooms } from "./roomHandlers.js";
  */
 function registerAssignRoleHandler(io, socket) {
   socket.on('assign_role', ({ userId, role }) => {
+    const validRoles = ['host', 'moderator', 'participant'];
+    if (!validRoles.includes(role)) {
+      socket.emit('error', { message: 'Invalid role specified' });
+      return;
+    }
+
     const room = rooms.get(socket.data.roomId);
     if (!room) {
       return;
