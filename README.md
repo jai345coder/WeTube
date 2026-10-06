@@ -6,7 +6,7 @@ A real-time YouTube watch party web application featuring synchronized video pla
 
 ## 🚀 Live Demo
 
-Live URL:we-tube-five-brown.vercel.app
+Live URL:[live](we-tube-five-brown.vercel.app)
 
 ---
 
